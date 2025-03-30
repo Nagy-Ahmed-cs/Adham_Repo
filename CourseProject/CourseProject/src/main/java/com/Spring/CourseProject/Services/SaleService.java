@@ -1,42 +1,58 @@
 package com.Spring.CourseProject.Services;
 
 
-import com.Spring.CourseProject.Entity.Order;
-import com.Spring.CourseProject.Entity.Sale;
 import com.Spring.CourseProject.Dto.OrderDto;
+import com.Spring.CourseProject.Entity.Order;
+import com.Spring.CourseProject.Entity.Product;
+import com.Spring.CourseProject.Entity.Sale;
+import com.Spring.CourseProject.Repos.OrderRepo;
 import com.Spring.CourseProject.Repos.SaleRepo;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class SaleService {
-    @Autowired
-    SaleRepo salerepo;
+
+    private final SaleRepo salerepo;
     private final OrderService orderService;
-    public SaleService(OrderService orderService){
-         this.orderService=orderService;
-    }
+    private final ProductService productService;
+    private  final OrderRepo orderRepo;
 
-    public Order makeOrder(List<OrderDto>orders){
-        if(orders.isEmpty()){
-            return null ;
+
+
+    public Order makeOrder(List<OrderDto> orders) {
+        if (orders.isEmpty()) {
+            return null;
         }
-        Order order= orderService.makeOrder(orders);
-        for(OrderDto o : orders){
-            Sale sale= new Sale();
-            sale.setOrderId(order.getOrderId());
 
-            sale.setProductId(o.getProductId());
+        // Create new Order and save it first
+        Order order= orderService.makeOrder(orders);
+
+
+        // Process each order item and create Sale entries
+        for (OrderDto o : orders) {
+            Product product = productService.getProductById(o.getProductId());
+
+
+            Sale sale = new Sale();
+            sale.setOrder(order);  // Associate order with sale
+            sale.setProduct(product);  // Associate product with sale
             salerepo.save(sale);
         }
+
         return order;
     }
+
     public List<Sale>getSales(){
         return salerepo.findAll();
     }
     public List<Sale>findAllByOrderId(Integer orderId){
-       return salerepo.findAllByOrderId(orderId);
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found with ID: " + orderId));
+
+        return salerepo.findAllByOrder(order);
     }
 }
